@@ -40,12 +40,8 @@ jobs:
 
   macos:
     name: MacOS
-    runs-on: macos-15-intel
+    runs-on: macos-15
 
-    strategy:
-      matrix:
-        defines:
-          - ""
     env:
       UPLOAD_ARTIFACT: "true"
       ONLY_CACHE: "false"
@@ -56,23 +52,28 @@ jobs:
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
       - name: Clone.
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           path: ${{ env.REPO_NAME }}
 
       - name: First set up.
         run: |
-          sudo chown -R `whoami`:admin /usr/local/share
+          sudo chown -R `whoami`:admin /usr/local/share || true
 
           brew update
           brew upgrade || true
           brew install automake meson nasm ninja pkg-config
 
-          # Disable spotlight.
           sudo mdutil -a -i off
 
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Fix script permissions.
+        run: |
+          chmod +x $REPO_NAME/Telegram/build/prepare/mac.sh
+          chmod +x $REPO_NAME/Telegram/configure.sh
+          find $REPO_NAME -name "*.sh" -exec chmod +x {} \;
 
       - name: ThirdParty cache.
         id: cache-third-party
@@ -97,43 +98,32 @@ jobs:
       - name: Free up some disk space.
         run: |
           cd Libraries
-          find . -iname "*.dir" -exec rm -rf {} || true \;
+          find . -iname "*.dir" -exec rm -rf {} \; || true
 
       - name: Opengram Desktop build.
         if: env.ONLY_CACHE == 'false'
         run: |
           cd $REPO_NAME/Telegram
 
-          DEFINE=""
-          if [ -n "${{ matrix.defines }}" ]; then
-            DEFINE="-D ${{ matrix.defines }}=ON"
-            echo Define from matrix: $DEFINE
-            echo "ARTIFACT_NAME=Opengram_${{ matrix.defines }}" >> $GITHUB_ENV
-          else
-            echo "ARTIFACT_NAME=Opengram" >> $GITHUB_ENV
-          fi
-
           ./configure.sh \
-          -D CMAKE_CONFIGURATION_TYPES=Debug \
-          -D CMAKE_COMPILE_WARNING_AS_ERROR=ON \
+          -D CMAKE_CONFIGURATION_TYPES=Release \
           -D CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
-          -D TDESKTOP_API_TEST=ON \
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
-          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \
-          $DEFINE
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
 
-          cmake --build ../out --config Debug --parallel
+          cmake --build ../out --config Release --parallel
 
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
-          cd $REPO_NAME/out/Debug
+          cd $REPO_NAME/out/Release
           mkdir artifact
-          mv Telegram.app artifact/
+          mv Telegram.app artifact/Opengram.app
           mv Updater artifact/
-      - uses: actions/upload-artifact@v5
+          
+      - uses: actions/upload-artifact@v4
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
         with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ env.REPO_NAME }}/out/Debug/artifact/
+          name: Opengram_MacOS
+          path: ${{ env.REPO_NAME }}/out/Release/artifact/

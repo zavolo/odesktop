@@ -72,6 +72,10 @@ jobs:
           DOCKERFILE=$(DEBUG= LTO= poetry run gen_dockerfile)
           echo "$DOCKERFILE" > Dockerfile
 
+      - name: Fix script permissions.
+        run: |
+          find . -name "*.sh" -type f -exec chmod +x {} \;
+
       - name: Free up some disk space.
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
         with:
