@@ -90,18 +90,6 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
 
-      - name: Install GSL
-        shell: bash
-        run: |
-          cd $TBUILD/Libraries
-          git clone https://github.com/Microsoft/GSL.git
-          cd GSL
-          git checkout v4.0.0
-          mkdir build && cd build
-          cmake .. -DGSL_TEST=OFF
-          cmake --build . --config Release
-          cmake --install . --prefix $TBUILD/Libraries/local
-
       - name: NuGet sources.
         run: |
           nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
@@ -138,13 +126,20 @@ jobs:
           del /S Libraries\*.pch
           del /S Libraries\*.obj
 
+      - name: Find Qt path.
+        id: qt-path
+        shell: bash
+        run: |
+          QT_PATH=$(find $TBUILD/Libraries -maxdepth 1 -type d -name "qt*" | head -1)
+          echo "QT_PATH=$QT_PATH" >> $GITHUB_ENV
+          echo "Found Qt at: $QT_PATH"
+
       - name: Opengram Desktop build.
         if: env.ONLY_CACHE == 'false'
         run: |
           cd %TBUILD%\%REPO_NAME%\Telegram
 
           call configure.bat ^
-          -D CMAKE_PREFIX_PATH=%TBUILD%\Libraries\local ^
           -D CMAKE_CONFIGURATION_TYPES=Release ^
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF ^
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
