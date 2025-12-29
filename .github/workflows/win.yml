@@ -169,7 +169,7 @@ jobs:
           move %OUT%\Telegram.exe artifact/Opengram.exe
           move %OUT%\Updater.exe artifact/
           
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         name: Upload artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
         with:
