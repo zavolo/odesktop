@@ -130,21 +130,36 @@ jobs:
         id: qt-path
         shell: bash
         run: |
-          QT_PATH=$(find $TBUILD/Libraries -maxdepth 1 -type d -name "qt*" | head -1)
+          QT_PATH=$(find $TBUILD/Libraries -maxdepth 1 -type d -name "qt_*" | head -1)
+          if [ -z "$QT_PATH" ]; then
+            QT_PATH=$(find $TBUILD/Libraries -maxdepth 1 -type d -name "qt-*" | head -1)
+          fi
+          if [ -z "$QT_PATH" ]; then
+            QT_PATH=$(find $TBUILD/Libraries -maxdepth 1 -type d -name "Qt*" | head -1)
+          fi
           echo "QT_PATH=$QT_PATH" >> $GITHUB_ENV
           echo "Found Qt at: $QT_PATH"
+          
+          # Convert to Windows path for CMake
+          QT_PATH_WIN=$(echo "$QT_PATH" | sed 's|/|\\|g')
+          echo "QT_PATH_WIN=$QT_PATH_WIN" >> $GITHUB_ENV
 
       - name: Opengram Desktop build.
         if: env.ONLY_CACHE == 'false'
+        shell: bash
         run: |
-          cd %TBUILD%\%REPO_NAME%\Telegram
-
-          call configure.bat ^
-          -D CMAKE_CONFIGURATION_TYPES=Release ^
-          -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF ^
-          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
-
-          cmake --build ..\out --config Release --parallel
+          cd $TBUILD/$REPO_NAME/Telegram
+          
+          # Set CMAKE_PREFIX_PATH to include Qt
+          export CMAKE_PREFIX_PATH="$QT_PATH"
+          
+          ./configure.bat \
+            -D CMAKE_PREFIX_PATH="$QT_PATH" \
+            -D CMAKE_CONFIGURATION_TYPES=Release \
+            -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
+            -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
+          
+          cmake --build ../out --config Release --parallel
 
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
